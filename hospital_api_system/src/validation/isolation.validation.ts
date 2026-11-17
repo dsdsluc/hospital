@@ -1,0 +1,8 @@
+import { z } from "zod";
+import { validateBody } from "./validate.js";
+const text=(n:number)=>z.string().trim().max(n).nullable().optional();
+export const createIsolationReferralSchema=z.object({emergency_case_id:z.uuid().optional(),medical_visit_id:z.uuid().optional(),source_room:z.enum(["REC-101","ER-102","PRE-503","ICU-505","IP-401","IP-402","OBS-403"]),isolation_type:z.enum(["CONTACT","DROPLET","AIRBORNE","PROTECTIVE"]),reason:z.string().trim().max(5000),diagnosis:text(3000),transport_condition:text(3000),vital_signs:text(3000),ppe_requirements:text(3000),handoff_note:text(5000)}).refine(x=>Number(Boolean(x.emergency_case_id))+Number(Boolean(x.medical_visit_id))===1,{message:"Cần đúng một nguồn hồ sơ bệnh nhân."});
+export const createIsolationMonitoringSchema=z.object({symptoms:z.string().trim().max(10000),vital_signs:text(3000),respiratory_support:text(3000),treatment_response:text(5000),test_name:text(1000),test_result:text(5000),infection_note:text(5000)});
+export const releaseIsolationSchema=z.object({final_assessment:z.string().trim().max(10000),infection_risk_result:z.string().trim().max(5000),destination_room:z.enum(["IP-401","IP-402","OBS-403","ICU-505","PHM-105","DECEASED"])});
+export type CreateIsolationReferralInput=z.infer<typeof createIsolationReferralSchema>; export type CreateIsolationMonitoringInput=z.infer<typeof createIsolationMonitoringSchema>; export type ReleaseIsolationInput=z.infer<typeof releaseIsolationSchema>;
+export const validateCreateIsolationReferral=validateBody(createIsolationReferralSchema); export const validateCreateIsolationMonitoring=validateBody(createIsolationMonitoringSchema); export const validateReleaseIsolation=validateBody(releaseIsolationSchema);

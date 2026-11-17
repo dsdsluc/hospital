@@ -1,0 +1,16 @@
+import { Router } from "express";
+import { UserRole } from "../generated/prisma/client.js";
+import { authenticate, authorize } from "../middleware/auth.middleware.js";
+import { getNursingDashboard, patchAlert, patchTask, postAlert, postHandover, postTask, postVital, putCarePlan } from "../controller/nursing.controller.js";
+import { validateCreateAlert, validateCreateHandover, validateCreateTask, validateRecordVital, validateSaveCarePlan, validateUpdateAlert, validateUpdateTask } from "../validation/nursing.validation.js";
+const router = Router();
+router.use(authenticate, authorize(UserRole.DOCTOR));
+router.get("/dashboard", getNursingDashboard);
+router.put("/patients/:preparationId/care-plan", validateSaveCarePlan, putCarePlan);
+router.post("/patients/:preparationId/tasks", validateCreateTask, postTask);
+router.patch("/tasks/:taskId", validateUpdateTask, patchTask);
+router.post("/patients/:preparationId/vitals", validateRecordVital, postVital);
+router.post("/patients/:preparationId/alerts", validateCreateAlert, postAlert);
+router.patch("/alerts/:alertId", validateUpdateAlert, patchAlert);
+router.post("/patients/:preparationId/handovers", validateCreateHandover, postHandover);
+export default router;

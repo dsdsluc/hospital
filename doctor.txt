@@ -1,0 +1,524 @@
+CHỨC NĂNG DÀNH CHO BÁC SĨ / NHÂN VIÊN Y TẾ
+================================================================================
+
+TỔNG QUAN
+--------------------------------------------------------------------------------
+Bệnh viện có 5 tầng. Mỗi tầng có một nhóm chức năng riêng:
+
+  Tầng 1 - Tiếp nhận và cấp cứu
+           REC-101 Phòng tiếp nhận      ER-102  Phòng cấp cứu
+           CAS-103 Quầy thu ngân        PHM-105 Nhà thuốc
+           (LAB-104 Phòng lấy mẫu xét nghiệm: có trong danh sách phòng nhưng
+            chưa dùng; việc lấy mẫu làm tại LAB-305.)
+  Tầng 2 - Khám bệnh ngoại trú
+           GEN-201, GEN-202 Phòng khám tổng quát 1, 2
+           INT-203 Phòng khám nội khoa  PED-204 Phòng khám nhi
+           ENT-205 Phòng tai mũi họng   DER-206 Phòng da liễu
+  Tầng 3 - Chẩn đoán và xét nghiệm
+           US-301, US-302 Siêu âm 1, 2  XR-303 X-quang     CT-304 CT
+           LAB-305 Xét nghiệm máu       ECG-306 Điện tim
+  Tầng 4 - Điều trị và theo dõi
+           IP-401, IP-402 Phòng bệnh 1, 2      OBS-403 Phòng theo dõi
+           ISO-404 Phòng cách ly               NUR-405 Phòng trực điều dưỡng
+  Tầng 5 - Phẫu thuật và hồi sức
+           PRE-503 Chuẩn bị phẫu thuật   OR-501, OR-502 Phòng phẫu thuật 1, 2
+           REC-504 Phòng hồi tỉnh        ICU-505 Hồi sức tích cực
+
+Hệ thống có HAI LUỒNG chính:
+
+  LUỒNG 1 - KHÁM BÌNH THƯỜNG (ngoại trú)
+    REC-101 -> Phòng khám tầng 2 -> (Cận lâm sàng tầng 3) -> Phòng khám tầng 2
+            -> CAS-103 -> PHM-105 -> Ra về
+
+  LUỒNG 2 - CẤP CỨU (nội trú)
+    ER-102 -> PRE-503 -> (OR-501/502 -> REC-504 / ICU-505) hoặc ICU-505
+           hoặc thẳng tầng 4 -> Điều trị tầng 4 -> PHM-105 -> CAS-103 -> Ra viện
+
+Hai luồng có điểm nối: bệnh nhân khám thường có diễn biến nặng được chuyển
+sang luồng cấp cứu (xem PHẦN D).
+
+Nguyên tắc chung khi nhập liệu
+  Hệ thống ưu tiên CẢNH BÁO thay vì CHẶN: phần lớn ô thông tin không bắt buộc,
+  thiếu dữ liệu chỉ hiện nhắc nhở ("chưa có đánh giá - vẫn có thể xác nhận").
+  Chỉ chặn ở những chỗ thật sự cần (ví dụ: cấp thuốc vượt tồn kho, cấp thuốc
+  khi hóa đơn chưa thanh toán).
+
+
+================================================================================
+PHẦN A. CHỨC NĂNG CHUNG CHO MỌI PHÒNG
+================================================================================
+Đăng nhập và chọn vị trí làm việc
+  - Nhân viên đăng nhập, chọn TẦNG và PHÒNG đang trực. Toàn bộ màn hình làm
+    việc thay đổi theo phòng đã chọn (phòng khám thấy phiếu khám, phòng xét
+    nghiệm thấy phiếu kết quả, thu ngân thấy hóa đơn...).
+
+Thanh điều hướng của mỗi phòng
+  - Tổng quan        : khu vực làm việc chính của phòng (hàng đợi + phiếu xử lý).
+  - Hàng đợi         : danh sách bệnh nhân đang chờ / đang xử lý tại phòng,
+                       gồm hàng đợi khám thường và hàng đợi cấp cứu.
+  - Lượt khám        : danh sách lượt khám, mở xem chi tiết và kết quả.
+  - Tra cứu hồ sơ    : tìm lại hồ sơ khám / hồ sơ điều trị cũ.
+  - Tra cứu bệnh nhân: tìm bệnh nhân theo tên, mã bệnh nhân, SĐT, CCCD.
+  - Lịch sử          : nhật ký việc đã làm tại phòng (khám, trả kết quả, cấp
+                       thuốc, thu tiền...), mở được chi tiết từng việc.
+  - Bảng giá         : giá dịch vụ và giá thuốc đang áp dụng.
+
+Hàng đợi
+  - Tìm bệnh nhân theo tên hoặc mã.
+  - Lọc theo trạng thái: Chờ (chờ khám / chờ lấy mẫu / chờ thực hiện / chờ
+    nhận thuốc...) và Đang xử lý.
+  - Mỗi bệnh nhân hiện thời gian đã chờ, mức ưu tiên (với cấp cứu).
+
+
+================================================================================
+PHẦN B. LUỒNG 1 - KHÁM BÌNH THƯỜNG
+================================================================================
+
+B1. REC-101 - PHÒNG TIẾP NHẬN
+--------------------------------------------------------------------------------
+Mục đích: xác nhận bệnh nhân, đo chỉ số ban đầu, khởi tạo lượt khám và xếp
+phòng khám. KHÔNG chẩn đoán tại phòng tiếp nhận.
+
+Ba cách tiếp nhận
+  a) Bệnh nhân CÓ LỊCH HẸN hôm nay
+     - Bệnh nhân hiện sẵn trong hàng đợi lịch hẹn hôm nay.
+     - Tra cứu bằng mã lịch hẹn (6 ký tự) hoặc tên.
+  b) Bệnh nhân CÓ TÀI KHOẢN nhưng không đặt lịch
+     - Tra cứu bằng MÃ BỆNH NHÂN để dùng hồ sơ có sẵn.
+     - Lượt khám sẽ hiện trong tài khoản của bệnh nhân.
+  c) Bệnh nhân VÃNG LAI (không tài khoản)
+     - Tạo hồ sơ vãng lai mới: họ tên, ngày sinh, giới tính, SĐT, CCCD, địa chỉ.
+     - Hồ sơ vãng lai KHÔNG có mã bệnh nhân; lượt khám lưu vào lịch sử hồ sơ đó.
+
+Các trường hợp lịch hẹn đặc biệt (hệ thống báo rõ lý do)
+  - Lịch đã hủy, lịch đã khám xong: không tiếp nhận lại, cần tạo lượt mới.
+  - Lịch đã qua ngày: không còn hiệu lực.
+  - Lịch của ngày khác: có nút "Chuyển sang hôm nay & tiếp nhận".
+
+Quy trình 3 bước trên màn hình
+  Bước 1. Kiểm tra lịch hẹn / thông tin bệnh nhân -> bấm "Xác nhận đã đến".
+          Có thể "Chỉnh sửa hồ sơ" nếu thông tin sai.
+  Bước 2. "Đo & ghi nhận" (cửa sổ riêng):
+          - Sinh hiệu: mạch, huyết áp (dạng 120/80), nhiệt độ, nhịp thở,
+            SpO2, chiều cao, cân nặng. Có thể bỏ trống chỉ số chưa đo được.
+          - BMI tự tính theo chuẩn người châu Á, gắn nhãn Thiếu cân /
+            Bình thường / Thừa cân / Béo phì.
+          - Lý do đến khám và ghi chú cho bác sĩ phòng khám đầu tiên.
+  Bước 3. Chọn PHÒNG BÁC SĨ TIẾP NHẬN ở tầng 2 (tổng quát 1/2, nội khoa,
+          nhi, tai mũi họng, da liễu) -> "Bắt đầu lượt khám".
+          Phòng này là PHÒNG CHÍNH của lượt khám: bệnh nhân sẽ quay về đây
+          sau khi làm cận lâm sàng.
+
+Kết quả
+  - Tạo LƯỢT KHÁM mã VIS-xxxxxxxx, bệnh nhân vào hàng đợi phòng khám tầng 2.
+  - Bệnh nhân có tài khoản nhận thông báo "Mời đến phòng ...".
+  - Nếu nghi bệnh truyền nhiễm: có thể điều phối thẳng vào ISO-404 (PHẦN D).
+
+
+B2. PHÒNG KHÁM TẦNG 2 (GEN-201/202, INT-203, PED-204, ENT-205, DER-206)
+--------------------------------------------------------------------------------
+Mục đích: khám, chỉ định cận lâm sàng, kết luận, kê đơn.
+Các phòng dùng chung một phiếu khám; mỗi chuyên khoa có thêm một tab riêng.
+
+Hàng đợi phòng khám chia nhóm: bệnh nhân mới / đang chờ kết quả cận lâm
+sàng / đã đủ kết quả cần kết luận.
+
+Bước 1 - Xem thông tin từ tiếp nhận
+  Sinh hiệu, chiều cao, cân nặng, lý do đến khám, ghi chú của REC-101.
+
+Bước 2 - Khám ban đầu ("Lưu thông tin khám")
+  - Khám lâm sàng, đánh giá ban đầu, chẩn đoán sơ bộ, hướng xử trí tiếp theo.
+  - Tab chuyên khoa (chỉ hiện ở đúng phòng):
+      PED-204 Nhi khoa       : người đưa trẻ đi khám, cân nặng lúc sinh, tiền
+                               sử sinh, vòng đầu, tiêm chủng, dinh dưỡng, dị
+                               ứng thuốc/thức ăn.
+      INT-203 Nội khoa       : bệnh mạn tính đang theo dõi, huyết áp tự đo ở
+                               nhà, đường huyết (lúc đói / bất kỳ), HbA1c,
+                               thuốc đang dùng, mức tuân thủ điều trị.
+      ENT-205 Tai mũi họng   : tai (ống tai, màng nhĩ), mũi (niêm mạc, cuốn
+                               mũi, vách ngăn, dịch mũi), họng (amidan trái/
+                               phải, thành họng), thanh quản, hạch cổ.
+      DER-206 Da liễu        : từng tổn thương da (loại, vị trí, kích thước,
+                               màu sắc, số lượng, phân bố, thời gian xuất hiện)
+                               và triệu chứng kèm theo.
+      GEN-201/202            : khám tổng quát, không có tab riêng.
+
+Bước 3 - Chỉ định cận lâm sàng ("Thêm chỉ định")
+  - Chọn một hoặc nhiều phòng tầng 3:
+      Xét nghiệm          : LAB-305 Xét nghiệm máu
+      Chẩn đoán hình ảnh  : US-301/US-302 Siêu âm, XR-303 X-quang, CT-304 CT
+      Thăm dò chức năng   : ECG-306 Điện tim
+  - Ghi yêu cầu riêng cho từng phòng (vùng cần siêu âm, loại xét nghiệm...).
+  - Hệ thống hiện SỐ NGƯỜI ĐANG CHỜ ở mỗi phòng và gợi ý phòng vắng hơn
+    (ví dụ Siêu âm 1 đông thì chọn Siêu âm 2).
+  - Có thể "Chỉ định lại" một phòng nếu cần làm lại.
+  - Nếu không cần cận lâm sàng: bỏ qua bước này, sang thẳng Bước 5.
+
+Bước 4 - SAU KHI CHỈ ĐỊNH: luồng đi như thế nào?
+  1) Bệnh nhân rời phòng khám, vào hàng đợi các phòng tầng 3 đã chỉ định.
+     Ứng dụng của bệnh nhân hiện các phòng cần đi kèm đường đi.
+  2) Mỗi phòng tầng 3 gọi bệnh nhân vào, thực hiện, nhập kết quả, bấm
+     "Hoàn thành & gửi kết quả" (chi tiết ở B3).
+  3) Kết quả được GỬI VỀ PHÒNG KHÁM CHÍNH ngay lập tức. Trên phiếu khám, mục
+     "Kết quả cận lâm sàng" cập nhật trạng thái từng chỉ định:
+       Đã chỉ định -> Đang thực hiện -> Đã có kết quả
+  4) Còn phòng chưa làm: bệnh nhân được báo đi tiếp phòng còn lại.
+     Đủ tất cả kết quả: bệnh nhân được báo QUAY VỀ PHÒNG KHÁM.
+  5) Bác sĩ mở từng kết quả để xem chỉ số (cờ Cao/Thấp), mô tả, kết luận.
+
+Bước 5 - Kết luận ("Lưu kết luận")
+  - Chẩn đoán cuối cùng (có nút "Dùng chẩn đoán sơ bộ" để điền nhanh).
+  - Hướng điều trị: ngoại trú, theo dõi, hẹn tái khám, chuyển tuyến...
+  - Kết luận tổng hợp và lời dặn cho bệnh nhân (dấu hiệu cần quay lại, thời
+    gian tái khám).
+  - Nếu còn chỉ định chưa có kết quả, hệ thống NHẮC "nên chờ đủ kết quả"
+    nhưng không chặn.
+
+Bước 6 - Kê đơn thuốc (cửa sổ riêng)
+  - Gõ tên hoặc mã thuốc để tìm, thêm vào đơn; mỗi thuốc ghi số lượng, liều,
+    cách dùng. Thấy tồn kho của từng thuốc.
+  - Gợi ý liều: chọn liều mỗi lần, số lần mỗi ngày, số ngày, cách dùng (trước
+    / sau ăn...), hệ thống tự ghép thành câu và tính số lượng.
+  - Kiểm tra: thuốc trùng trong đơn, thuốc không còn khả dụng, số lượng vượt
+    tồn kho (phải chỉnh lại mới gửi được).
+  - Lời dặn dùng thuốc cho cả đơn.
+  - Có thể chọn "Không kê thuốc".
+
+Bước 7 - Hoàn tất ("Hoàn tất khám")
+  - Xem tóm tắt lần cuối rồi xác nhận.
+  - Có đơn thuốc : "Hoàn tất khám & chuyển nhà thuốc" -> đơn gửi PHM-105.
+  - Không kê thuốc: hoàn tất kết thúc phần khám.
+  - Ngay khi hoàn tất, hệ thống TỰ LẬP HÓA ĐƠN (khám + cận lâm sàng + thuốc)
+    và đưa bệnh nhân sang CAS-103.
+
+Chuyển luồng từ phòng khám
+  - Bệnh nhân diễn biến nặng: "Chuyển theo dõi tầng 4 (OBS-403)" -> sang
+    luồng cấp cứu/nội trú (PHẦN D).
+
+
+B3. PHÒNG CẬN LÂM SÀNG TẦNG 3
+--------------------------------------------------------------------------------
+Chung cho mọi phòng tầng 3
+  - Hàng đợi chỉ gồm bệnh nhân được chỉ định đến ĐÚNG phòng đó.
+  - Mỗi bệnh nhân hiện: chẩn đoán sơ bộ và yêu cầu riêng của bác sĩ chỉ định.
+  - Quy trình 2 bước:
+      1) "Gọi bệnh nhân vào ..." khi bệnh nhân đã vào phòng. Phải bấm bước này
+         thì mới mở được phiếu nhập kết quả.
+      2) Nhập kết quả -> "Hoàn thành & gửi kết quả". Kết quả về ngay phòng
+         khám chính, bệnh nhân được báo bước tiếp theo.
+  - Kết luận chuyên môn là bắt buộc trước khi gửi.
+
+LAB-305 - Xét nghiệm máu
+  - "Gọi bệnh nhân vào lấy mẫu" -> trạng thái Đang xét nghiệm.
+  - Nhập: loại xét nghiệm (ví dụ Tổng phân tích tế bào máu ngoại vi), mẫu bệnh
+    phẩm (Máu toàn phần), kỹ thuật / thiết bị.
+  - Nhập từng chỉ số (WBC, RBC, HGB, HCT, PLT, NEU, LYM...). Hệ thống có sẵn
+    khoảng tham chiếu, tự gắn cờ Thấp / Cao.
+  - Ghi chú kết quả và kết luận chuyên môn.
+
+US-301/302 - Siêu âm, XR-303 - X-quang, CT-304 - CT
+  - "Gọi bệnh nhân vào siêu âm / chụp X-quang / chụp CT".
+  - Chọn vùng / kỹ thuật (ví dụ: bụng tổng quát, tuyến giáp, tim; ngực thẳng,
+    bụng không chuẩn bị, cột sống thắt lưng; CT sọ não không cản quang, CT
+    bụng - chậu có cản quang...).
+  - Có MẪU MÔ TẢ BÌNH THƯỜNG cho từng vùng (gan, lách, thận, phổi, não thất...)
+    để chèn nhanh, sau đó chỉnh theo hình ảnh thực tế.
+  - Nhập mô tả hình ảnh và kết luận.
+
+ECG-306 - Điện tim
+  - "Gọi bệnh nhân vào đo điện tim".
+  - Điện tâm đồ 12 chuyển đạo: thiết bị, tần số tim, nhịp (xoang đều, nhanh
+    xoang, chậm xoang, ngoại tâm thu...), trục tim (bình thường / lệch trái /
+    lệch phải), biến đổi ST-T, mô tả và kết luận.
+
+
+B4. CAS-103 - QUẦY THU NGÂN
+--------------------------------------------------------------------------------
+Mục đích: thu viện phí trước khi bệnh nhân nhận thuốc hoặc ra về.
+(Bệnh viện có hệ thống kế toán riêng; tại đây chỉ ghi nhận phương thức và
+trạng thái thanh toán.)
+
+  - Danh sách hóa đơn Chờ thanh toán / Đã thanh toán hôm nay, phân loại:
+    Khám thường / Cấp cứu · ra viện.
+  - Mở hóa đơn: chi tiết từng dòng dịch vụ / thuốc (ĐVT, đơn giá, thành tiền)
+    theo nhóm Khám bệnh, Cận lâm sàng, Thuốc, Cấp cứu & thủ thuật, Phẫu thuật,
+    Ngày giường.
+  - Bảo hiểm y tế:
+      + Bật "Có bảo hiểm y tế" -> nhập mã thẻ BHYT hoặc CCCD, họ tên trên thẻ.
+      + Giảm 80% TOÀN BỘ hóa đơn, bệnh nhân trả 20%.
+      + Thiếu mã thẻ chỉ nhắc, vẫn xác nhận được.
+      + Thông tin thẻ lưu lại trên hóa đơn (lịch sử sử dụng bảo hiểm).
+  - Chọn phương thức: Tiền mặt / Chuyển khoản / Thẻ.
+  - "Xác nhận đã thanh toán" -> hóa đơn chuyển "Đã thanh toán".
+  - Sau đó: hướng dẫn bệnh nhân sang PHM-105 nhận thuốc, hoặc ra về nếu không
+    có thuốc. Bệnh nhân nhận thông báo "Thuốc đã sẵn sàng".
+  - Lịch sử phòng ghi lại từng giao dịch, mở được trang chi tiết hóa đơn.
+
+
+B5. PHM-105 - NHÀ THUỐC (đơn khám thường)
+--------------------------------------------------------------------------------
+  - Hàng đợi đơn thuốc cần cấp, mỗi đơn hiện HAI trạng thái:
+      + Trạng thái cấp thuốc : Chờ nhận thuốc / Đang cấp thuốc.
+      + Trạng thái thanh toán: Đã thanh toán / Chưa thanh toán tại CAS-103.
+  - Quy trình:
+      1) Gọi bệnh nhân đến quầy, đối chiếu MÃ LƯỢT KHÁM (bệnh nhân đọc mã).
+      2) "Bắt đầu cấp thuốc" -> đánh dấu từng thuốc Đã chuẩn bị; xem liều,
+         cách dùng, lời dặn và tồn kho từng thuốc.
+      3) Kiểm tra bàn giao: đúng bệnh nhân, đúng tên và số lượng thuốc, bệnh
+         nhân đã được hướng dẫn sử dụng.
+      4) "Xác nhận cấp thuốc" -> trừ tồn kho và KẾT THÚC LƯỢT KHÁM.
+  - Chặn:
+      + Hóa đơn CHƯA THANH TOÁN -> không xác nhận cấp thuốc được, hướng dẫn
+        bệnh nhân quay lại CAS-103.
+      + Thuốc không đủ tồn kho -> cần bổ sung kho trước.
+
+
+TÓM TẮT LUỒNG 1
+--------------------------------------------------------------------------------
+  [REC-101] Xác nhận đến -> Đo sinh hiệu -> Chọn phòng khám -> tạo VIS-...
+      |
+  [Tầng 2] Khám ban đầu (+ tab chuyên khoa)
+      |-- không cần cận lâm sàng ------------------------------+
+      |-- Chỉ định cận lâm sàng                                |
+            |                                                  |
+        [Tầng 3] Gọi vào -> Nhập kết quả -> Gửi kết quả         |
+            | (lặp lại cho từng phòng đã chỉ định)             |
+            v                                                  |
+  [Tầng 2] Xem kết quả -> Kết luận -> Kê đơn -> Hoàn tất  <------+
+      |  (tự lập hóa đơn)
+  [CAS-103] BHYT (nếu có) -> Phương thức -> Xác nhận thanh toán
+      |
+  [PHM-105] Đối chiếu -> Chuẩn bị -> Kiểm tra -> Xác nhận cấp thuốc
+      |
+  KẾT THÚC LƯỢT KHÁM
+
+
+================================================================================
+PHẦN C. LUỒNG 2 - CẤP CỨU
+================================================================================
+
+C1. ER-102 - PHÒNG CẤP CỨU (Trung tâm điều phối cấp cứu)
+--------------------------------------------------------------------------------
+Mục đích: tiếp nhận nhanh, xử trí ban đầu, phân loại ưu tiên, chuyển lên
+PRE-503. Không cần lịch hẹn, không cần đi qua tầng 2, tầng 3.
+
+Tiếp nhận ca cấp cứu ("Tiếp nhận ca cấp cứu")
+  - Nhập thông tin hiện có, thiếu vẫn tiếp nhận được (bệnh nhân bất tỉnh,
+    không giấy tờ ghi "Chưa rõ").
+  - Thông tin bệnh nhân: họ tên, giới tính, SĐT, CCCD.
+  - Thông tin đến viện: hình thức đến (Tự đến / Xe cấp cứu / Chuyển viện /
+    Khác), người đưa đến và SĐT người đưa, lý do cấp cứu.
+  - Mức ưu tiên (đổi được theo diễn biến):
+      Đỏ   - Nguy kịch
+      Cam  - Rất khẩn
+      Vàng - Khẩn cấp
+      Xanh - Ít khẩn
+  - Giường / vị trí trong phòng cấp cứu.
+  - Danh sách cấp cứu sắp theo mức ưu tiên, tìm theo tên, mã ca, SĐT, CCCD.
+
+Các tab xử lý một ca
+  1) Đánh giá ban đầu ("Lưu đánh giá ban đầu")
+     - Sinh hiệu hiện tại: mạch, huyết áp, nhiệt độ, nhịp thở, SpO2, điểm đau
+       (0-10), ý thức (tỉnh / lơ mơ / hôn mê).
+     - Triệu chứng và diễn biến, cơ chế chấn thương, tiền sử quan trọng,
+       dị ứng, bệnh cảnh.
+  2) Xử trí ("Ghi nhận xử trí")
+     - Chọn một hoặc nhiều xử trí: kiểm soát đường thở, thở oxy, thiết lập
+       đường truyền tĩnh mạch, kiểm soát chảy máu, hồi sinh tim phổi, thuốc
+       cấp cứu, theo dõi monitor liên tục, xử trí khác.
+     - Ghi chi tiết: liều thuốc, lưu lượng oxy, đáp ứng...
+     - Lưu xử trí đồng thời cập nhật sinh hiệu hiện tại.
+     - Lịch sử xử trí hiển thị theo thời gian.
+  3) Chỉ định khẩn -> chuyển PRE-503
+     - Chuyển THẲNG đến PRE-503 (tầng 5), không qua phòng chức năng tầng 3.
+     - Mức độ phẫu thuật: Tối khẩn / Khẩn / Xử lý sớm.
+     - Chẩn đoán nghi ngờ, tình trạng vận chuyển, ghi chú bàn giao.
+     - Chọn chỉ định làm tại PRE-503 (ít nhất 1): Xét nghiệm máu, Siêu âm tại
+       chỗ, CT tại chỗ.
+  4) Hướng xử lý
+     - Sau khi chuyển, PRE-503 hoàn tất chỉ định và quyết định phòng tiếp theo.
+  - Nếu nghi bệnh truyền nhiễm: điều phối vào ISO-404 (PHẦN D).
+
+SAU KHI CHỈ ĐỊNH TỪ ER-102: luồng đi như thế nào?
+  Ca chuyển sang hàng đợi PRE-503 với trạng thái "Chờ tiếp nhận". Các chỉ định
+  khẩn được làm ngay tại PRE-503 (không xếp hàng ở tầng 3).
+
+
+C2. PRE-503 - CHUẨN BỊ PHẪU THUẬT
+--------------------------------------------------------------------------------
+Mục đích: làm chỉ định khẩn tại chỗ, đánh giá lại, quyết định bệnh nhân đi đâu.
+
+  Bước 1. "Xác nhận tiếp nhận tại PRE-503" - xem ghi chú bàn giao và sinh hiệu
+          từ ER-102.
+  Bước 2. Nhập kết quả từng chỉ định tại chỗ (có MẪU để điền nhanh):
+          - Xét nghiệm máu khẩn: bạch cầu, tiểu cầu, nhóm máu Rh, đường huyết...
+          - Siêu âm tại chỗ (FAST / eFAST): khoang Morison, quanh lách, túi
+            cùng Douglas, màng ngoài tim, phổi trái/phải (dấu trượt màng phổi).
+          - CT tại chỗ.
+          Còn chỗ "..." chưa điền chỉ nhắc, vẫn lưu được.
+          Khi đủ kết quả: "Đã đủ kết quả để điều phối".
+  Bước 3. "Đánh giá & chuyển phòng":
+          - Chẩn đoán sơ bộ, sinh hiệu đo lại (có nút "Dùng lại số đo tại ER"),
+            tình trạng bệnh nhân, ghi chú bàn giao.
+          - Chọn PHÒNG CHUYỂN TIẾP (hiện phòng đang trống / đang dùng):
+              Tầng 5: OR-501 / OR-502 Phẫu thuật, ICU-505 Hồi sức tích cực
+              Tầng 4: OBS-403 Phòng theo dõi, IP-401 / IP-402 Phòng bệnh
+  - Có thể điều phối vào ISO-404 nếu nghi lây nhiễm.
+
+SAU KHI ĐIỀU PHỐI TỪ PRE-503:
+  -> OR-501/502 : vào danh sách ca chờ phẫu thuật (C3).
+  -> ICU-505    : hồi sức trực tiếp, không mổ (C4).
+  -> Tầng 4     : điều trị / theo dõi (C5).
+
+
+C3. OR-501 / OR-502 - PHÒNG PHẪU THUẬT
+--------------------------------------------------------------------------------
+  - Danh sách ca phẫu thuật: Chờ phẫu thuật / Đang phẫu thuật / Đã mổ.
+  - Xem bàn giao từ PRE-503: chẩn đoán trước chuyển, sinh hiệu, kết quả xét
+    nghiệm / siêu âm / CT tại chỗ. Có thể mổ khi chưa đủ kết quả (chỉ nhắc).
+  - "Sẵn sàng phẫu thuật" -> xác nhận ê-kíp và thiết bị -> bắt đầu ca mổ.
+  - Biên bản phẫu thuật (có "Ghi biên bản nhanh"):
+      + Tên phẫu thuật, phương pháp (Mổ mở / Nội soi / Nội soi chuyển mổ mở),
+        phương pháp vô cảm (gây mê nội khí quản, tê tủy sống...).
+      + Giờ rạch da, giờ đóng da.
+      + Phát hiện trong mổ, lượng máu mất ước tính, truyền máu / dịch.
+      + Trạng thái ca mổ: Thành công / Thành công, có biến chứng / Không thành
+        công. Kết luận của phẫu thuật viên, lưu ý hậu phẫu.
+  - Chọn NƠI TIẾP NHẬN SAU MỔ:
+      REC-504 Phòng hồi tỉnh   - theo dõi sau mổ thông thường.
+      ICU-505 Hồi sức tích cực - cần hồi sức, theo dõi sát.
+    Bệnh nhân được chuyển ngay khi hoàn tất.
+
+
+C4. REC-504 - PHÒNG HỒI TỈNH, ICU-505 - HỒI SỨC TÍCH CỰC
+--------------------------------------------------------------------------------
+REC-504
+  - Tiếp nhận và theo dõi hồi tỉnh sau gây mê; xem biên bản phẫu thuật và
+    thời gian đã ở phòng.
+  - (Bước quyết định rời REC-504 chưa được xây dựng.)
+
+ICU-505 (nhận từ OR sau mổ hoặc từ PRE-503 chuyển thẳng)
+  - Xem bàn giao: biên bản phẫu thuật hoặc đánh giá của PRE-503.
+  - Ghi diễn biến điều trị nhiều lần: sinh hiệu (ví dụ "M 88 · HA 120/80 ·
+    SpO2 97% · T 37,2 · NT 18"), tri giác, hô hấp, tuần hoàn, vết mổ / dẫn
+    lưu, điều trị và đáp ứng, đánh giá (Cải thiện / Ổn định / Diễn biến xấu
+    hơn).
+  - Kê đơn thuốc ICU (tìm thuốc, liều, cách dùng, lời dặn). Đây chính là đơn
+    PHM-105 sẽ cấp khi bệnh nhân ra viện; có thể kê thêm ở bước ra quầy.
+  - Điều phối vào ISO-404 nếu cần cách ly.
+  - "Quyết định rời ICU": tình trạng khi rời ICU, rồi chọn:
+      a) Chuyển tầng 4 (chọn phòng: OBS-403, IP-401, IP-402) - tiếp tục điều
+         trị nội trú.
+      b) Ra quầy thuốc PHM-105 - nhận thuốc, chuẩn bị xuất viện
+         ("Lưu đơn & chuyển PHM-105"; đơn trống vẫn chuyển được để làm thủ tục).
+
+
+C5. TẦNG 4 - ĐIỀU TRỊ VÀ THEO DÕI
+--------------------------------------------------------------------------------
+Lưu ý chung: bệnh nhân đã xuống tầng 4 thì KHÔNG đề xuất quay lại tầng 5
+(giao diện không hiện lựa chọn này).
+
+OBS-403 Phòng theo dõi, IP-401 / IP-402 Phòng bệnh
+  - Nhận bệnh nhân từ: PRE-503 (chuyển thẳng), ICU-505, phòng khám tầng 2,
+    hoặc phòng khác của tầng 4. Xem bàn giao và diễn biến ICU trước đó.
+  - Ghi diễn biến điều trị (sinh hiệu, điều trị / đáp ứng, đánh giá).
+  - Kê / sửa đơn thuốc ra quầy.
+  - "Quyết định rời phòng":
+      a) Chuyển phòng tầng 4 (sang phòng theo dõi / phòng bệnh khác).
+      b) Ra quầy thuốc PHM-105 - chuẩn bị xuất viện. Cần có đơn thuốc trước.
+
+ISO-404 Phòng cách ly
+  - Nhận yêu cầu cách ly từ: REC-101, ER-102, PRE-503, ICU-505, tầng 4.
+    Yêu cầu gồm: lý do cách ly, chẩn đoán nghi ngờ / xác định, loại cách ly
+    (Tiếp xúc / Giọt bắn / Không khí / Bảo vệ), PPE bắt buộc, sinh hiệu và
+    tình trạng vận chuyển.
+  - "Tiếp nhận vào ISO-404" khi bệnh nhân đã đến phòng.
+  - Ghi diễn biến cách ly: triệu chứng (sốt, ho, khó thở, tiêu chảy, phát
+    ban...), sinh hiệu, hỗ trợ hô hấp (khí trời / oxy kính mũi / oxy mặt nạ /
+    thở máy không xâm nhập), xét nghiệm theo dõi (PCR, test nhanh, cấy...),
+    điều trị và đáp ứng. Ghi diễn biến KHÔNG làm bệnh nhân rời phòng.
+  - Đánh giá nguy cơ lây nhiễm: hết nguy cơ (ngừng cách ly) / còn nguy cơ
+    (tiếp tục phòng ngừa ở phòng mới) / chưa đủ dữ liệu.
+  - "Quyết định rời ISO-404": chuyển phòng tầng 4 hoặc ra quầy thuốc PHM-105.
+
+NUR-405 Phòng trực điều dưỡng (điều phối chăm sóc toàn tầng 4)
+  - Danh sách bệnh nhân tầng 4, giường, điều dưỡng phụ trách.
+  - Kế hoạch chăm sóc: mã giường, điều dưỡng phụ trách, mức chăm sóc
+    (thông thường / theo dõi sát / chăm sóc cao), nguy cơ té ngã, loét tỳ đè,
+    phòng ngừa cách ly, lưu ý chế độ ăn, tư thế, vận động.
+  - Công việc theo ca: đo sinh hiệu, cho thuốc, chăm sóc dẫn lưu, vệ sinh,
+    lấy mẫu, theo dõi vào/ra... Sắp theo giờ; việc quá giờ tô đỏ; đánh dấu
+    Đã xong / Bỏ lỡ.
+  - Ghi sinh hiệu: hệ thống tự gắn cờ Thấp / Cao để tham khảo.
+  - Cảnh báo bác sĩ: lý do gọi bác sĩ (ví dụ "sốt 39,5°C không đáp ứng hạ
+    sốt"), theo dõi trạng thái đã tiếp nhận / đã xử lý.
+  - Bàn giao ca trực: người giao, người nhận, xác nhận bàn giao.
+
+
+C6. RA VIỆN: PHM-105 -> CAS-103
+--------------------------------------------------------------------------------
+  1) Bác sĩ ICU / tầng 4 chọn "Ra quầy thuốc PHM-105". Lúc này hệ thống TỰ LẬP
+     HÓA ĐƠN RA VIỆN cho cả đợt điều trị:
+       - Cấp cứu & thủ thuật tại ER-102, xét nghiệm / siêu âm / CT tại PRE-503.
+       - Phẫu thuật (nếu có).
+       - Ngày giường: tính theo mỗi 24 giờ (làm tròn lên, tối thiểu 1 ngày)
+         tại ICU, phòng hồi tỉnh, tầng 4.
+       - Thuốc trong đơn ra viện.
+       - Nếu bệnh nhân đến từ lượt khám thường (PHẦN D): phí lượt khám đó
+         được GỘP luôn vào hóa đơn này.
+  2) PHM-105 - "Đơn thuốc ra viện (cấp cứu / nội trú)": xem thuốc, liều, cách
+     dùng, số lượng, tồn kho; cấp thuốc. Cấp thuốc xong mới đóng ca cấp cứu.
+  3) CAS-103 thu hóa đơn loại "Cấp cứu · ra viện" (BHYT 80% như khám thường).
+     (Hiện quầy thuốc cấp cứu CHƯA chặn khi hóa đơn chưa thanh toán.)
+
+
+TÓM TẮT LUỒNG 2
+--------------------------------------------------------------------------------
+  [ER-102] Tiếp nhận -> Ưu tiên -> Đánh giá -> Xử trí -> Chỉ định khẩn
+      |
+  [PRE-503] Tiếp nhận -> Làm chỉ định tại chỗ -> Đánh giá -> Chọn phòng
+      |------------------------+--------------------------+
+      v                        v                          v
+  [OR-501/502]             [ICU-505]               [Tầng 4: OBS/IP]
+   Biên bản mổ              Diễn biến, đơn ICU       Diễn biến, đơn thuốc
+      |                        |                          |
+      +-> REC-504 (hồi tỉnh)   +-> Tầng 4 ----------------+
+      +-> ICU-505              +-> PHM-105                |
+                                                          v
+              (chọn "Ra quầy thuốc" -> hệ thống tự lập hóa đơn ra viện)
+                               [PHM-105] Cấp thuốc ra viện
+                                    |
+                               [CAS-103] Thu hóa đơn ra viện
+                                    |
+                                RA VIỆN
+  NUR-405 điều phối chăm sóc song song cho mọi bệnh nhân tầng 4.
+  ISO-404 nhận bệnh nhân cần cách ly từ bất kỳ điểm nào trong luồng.
+
+
+================================================================================
+PHẦN D. ĐIỂM NỐI GIỮA HAI LUỒNG
+================================================================================
+1) Phòng khám tầng 2 -> OBS-403
+   Bác sĩ thấy bệnh nhân diễn biến nặng: "Chuyển theo dõi tầng 4 (OBS-403)".
+   Hệ thống tạo hồ sơ cấp cứu gắn với lượt khám; bệnh nhân đi tiếp theo
+   Luồng 2 từ C5. Phí lượt khám được gộp vào hóa đơn ra viện.
+
+2) REC-101 / ER-102 / PRE-503 / ICU-505 / tầng 4 -> ISO-404
+   Nghi bệnh truyền nhiễm: "Điều phối vào ISO-404" (tạo hồ sơ bàn giao riêng,
+   ISO-404 xác nhận tiếp nhận). Nếu đi từ lượt khám thường, hệ thống cũng tạo
+   hồ sơ cấp cứu để theo dõi và tính phí như C6.
+
+3) Hóa đơn
+   - Khám thường : lập khi bác sĩ "Hoàn tất khám".
+   - Cấp cứu     : lập khi chuyển "Ra quầy thuốc PHM-105".
+   - Lượt khám đã chuyển sang cấp cứu: chỉ có MỘT hóa đơn ra viện chung.
+   - Cả hai loại đều thanh toán tại CAS-103, áp dụng BHYT giống nhau.
+
+
+================================================================================
+PHẦN E. NHỮNG PHẦN CHƯA HOÀN THIỆN
+================================================================================
+  - REC-504: chưa có bước quyết định cho bệnh nhân rời phòng hồi tỉnh.
+  - PHM-105 (đơn cấp cứu): chưa chặn cấp thuốc khi hóa đơn chưa thanh toán.
+  - NUR-405: chưa có bàn giao ca cho toàn tầng.
+  - LAB-104: có trong danh sách phòng nhưng chưa dùng.

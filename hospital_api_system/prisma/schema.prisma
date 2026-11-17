@@ -1,0 +1,972 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum BloodType {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CANCELLED
+}
+
+enum RoomStatus {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum MedicineStatus {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum MedicineCategoryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum FloorStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MedicalVisitStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum VisitStepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum EmergencyPriority {
+  RED
+  ORANGE
+  YELLOW
+  GREEN
+}
+
+enum EmergencyArrivalMode {
+  WALK_IN
+  AMBULANCE
+  TRANSFER
+  OTHER
+}
+
+enum EmergencyCaseStatus {
+  WAITING
+  IN_TREATMENT
+  STABILIZED
+  AWAITING_PREPARATION
+  IN_PREPARATION
+  TRANSFERRED
+  CLOSED
+}
+
+enum PreparationUrgency {
+  IMMEDIATE
+  URGENT
+  EXPEDITED
+}
+
+enum PreparationStatus {
+  REQUESTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum PreparationOrderType {
+  BLOOD_TEST
+  ULTRASOUND
+  CT_SCAN
+}
+
+enum PreparationOrderStatus {
+  ORDERED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum SurgeryStatus {
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// Kết quả ca mổ do bác sĩ đánh giá khi hoàn tất.
+enum SurgeryOutcome {
+  SUCCESSFUL
+  COMPLICATED
+  UNSUCCESSFUL
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String?  @db.VarChar(255)
+  phone_number String?  @db.VarChar(20)
+  password_hash String?
+  role         UserRole @default(PATIENT)
+  patient      Patient?
+  doctor       Doctor?
+  emergency_interventions EmergencyIntervention[]
+
+  @@map("users")
+}
+
+model Patient {
+  id              String     @id @default(uuid()) @db.Uuid
+  /// null = bệnh nhân vãng lai, không có tài khoản đăng nhập.
+  user_id         String?    @unique @db.Uuid
+  /// Chỉ bệnh nhân có tài khoản mới có mã (tạo khi đăng ký); bệnh nhân vãng lai = null.
+  patient_code    String?    @unique @db.VarChar(30)
+  full_name       String     @db.VarChar(150)
+  date_of_birth   DateTime?  @db.Date
+  gender          Gender?
+  blood_type      BloodType?
+  identity_number String?    @db.VarChar(30)
+  address         String?
+  /// SĐT của hồ sơ (dùng cho bệnh nhân vãng lai; bệnh nhân có tài khoản dùng users.phone_number).
+  phone_number    String?    @db.VarChar(20)
+  weight_kg      Float?
+  height_cm      Float?
+  created_at      DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime   @updatedAt @db.Timestamptz(6)
+  user            User?      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+  medical_visits  MedicalVisit[]
+  emergency_cases EmergencyCase[]
+  notifications   PatientNotification[]
+
+  @@map("patients")
+}
+
+model EmergencyCase {
+  id               String               @id @default(uuid()) @db.Uuid
+  emergency_code   String               @unique @db.VarChar(20)
+  patient_id       String?              @db.Uuid
+  full_name        String               @db.VarChar(150)
+  date_of_birth    DateTime?            @db.Date
+  age              Int?
+  gender           Gender?
+  identity_number  String?              @db.VarChar(30)
+  phone_number     String?              @db.VarChar(20)
+  address          String?
+  unidentified     Boolean              @default(false)
+  arrival_mode     EmergencyArrivalMode
+  arrived_at       DateTime             @db.Timestamptz(6)
+  companion_name   String?              @db.VarChar(150)
+  companion_phone  String?              @db.VarChar(20)
+  reason           String
+  injury_mechanism String?
+  priority         EmergencyPriority
+  status           EmergencyCaseStatus  @default(WAITING)
+  location         String?              @db.VarChar(100)
+  intake_note      String?
+  created_at       DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime             @updatedAt @db.Timestamptz(6)
+  patient          Patient?             @relation(fields: [patient_id], references: [id], onDelete: SetNull)
+  assessment       EmergencyAssessment?
+  interventions    EmergencyIntervention[]
+  preparation      EmergencyPreparation?
+  isolation_episode IsolationEpisode?
+  source_medical_visit_id String?       @db.Uuid
+  source_medical_visit MedicalVisit?    @relation("EscalatedEmergencyVisit", fields: [source_medical_visit_id], references: [id], onDelete: SetNull)
+  invoice          Invoice?
+
+  @@index([priority, arrived_at])
+  @@index([status])
+  @@index([patient_id])
+  @@map("emergency_cases")
+}
+
+model EmergencyPreparation {
+  id                  String            @id @default(uuid()) @db.Uuid
+  emergency_case_id   String            @unique @db.Uuid
+  urgency             PreparationUrgency
+  suspected_diagnosis String?
+  transport_condition String?
+  request_note        String?
+  status              PreparationStatus @default(REQUESTED)
+  requested_at        DateTime          @default(now()) @db.Timestamptz(6)
+  started_at          DateTime?         @db.Timestamptz(6)
+  completed_at        DateTime?         @db.Timestamptz(6)
+  destination_room    String?           @db.VarChar(20)
+  disposition_note    String?
+  decided_at          DateTime?         @db.Timestamptz(6)
+  preliminary_diagnosis String?
+  pretransfer_pulse String?              @db.VarChar(100)
+  pretransfer_blood_pressure String?     @db.VarChar(100)
+  pretransfer_spo2 String?               @db.VarChar(100)
+  pretransfer_temperature String?        @db.VarChar(100)
+  pretransfer_respiratory_rate String?   @db.VarChar(100)
+  pretransfer_consciousness String?      @db.VarChar(100)
+  pretransfer_assessed_at DateTime?      @db.Timestamptz(6)
+  surgery_status      SurgeryStatus?
+  surgery_started_at  DateTime?          @db.Timestamptz(6)
+  surgery_completed_at DateTime?         @db.Timestamptz(6)
+  procedure_name      String?
+  anesthesia_note     String?
+  surgical_findings   String?
+  surgery_note        String?
+  /// Phương pháp phẫu thuật (mổ mở / nội soi / nội soi chuyển mổ mở...).
+  surgical_approach   String?
+  /// Giờ rạch da.
+  incision_at         DateTime?          @db.Timestamptz(6)
+  /// Giờ đóng da.
+  closure_at          DateTime?          @db.Timestamptz(6)
+  /// Lượng máu mất ước tính (ml).
+  estimated_blood_loss_ml Int?
+  /// Truyền máu / dịch trong mổ.
+  transfusion_note    String?
+  /// Trạng thái kết quả ca mổ.
+  surgery_outcome     SurgeryOutcome?
+  /// Kết luận của phẫu thuật viên.
+  surgeon_conclusion  String?
+  postoperative_destination String?      @db.VarChar(20)
+  icu_final_assessment String?
+  icu_outcome          String?           @db.VarChar(40)
+  icu_closed_at        DateTime?         @db.Timestamptz(6)
+  icu_discharged_at    DateTime?         @db.Timestamptz(6)
+  icu_progress_notes   EmergencyIcuProgress[]
+  emergency_prescription EmergencyPrescription?
+  ward_final_assessment String?
+  ward_outcome          String?           @db.VarChar(40)
+  ward_discharged_at    DateTime?         @db.Timestamptz(6)
+  ward_admitted_at      DateTime?         @db.Timestamptz(6)
+  ward_progress_notes   EmergencyWardProgress[]
+  nursing_care_plan     NursingCarePlan?
+  nursing_tasks         NursingTask[]
+  nursing_vitals        NursingVital[]
+  nursing_alerts        NursingAlert[]
+  nursing_handovers     NursingHandover[]
+  emergency_case      EmergencyCase     @relation(fields: [emergency_case_id], references: [id], onDelete: Cascade)
+  orders              PreparationOrder[]
+
+  @@index([status, requested_at])
+  @@map("emergency_preparations")
+}
+
+model NursingCarePlan {
+  id                    String               @id @default(uuid()) @db.Uuid
+  preparation_id        String               @unique @db.Uuid
+  bed_code              String?              @db.VarChar(30)
+  assigned_nurse_name   String?              @db.VarChar(150)
+  care_level            String               @default("STANDARD") @db.VarChar(20)
+  fall_risk             Boolean              @default(false)
+  pressure_injury_risk  Boolean              @default(false)
+  isolation_precaution  Boolean              @default(false)
+  care_note             String?
+  updated_at            DateTime             @updatedAt @db.Timestamptz(6)
+  preparation           EmergencyPreparation @relation(fields: [preparation_id], references: [id], onDelete: Cascade)
+
+  @@map("nursing_care_plans")
+}
+
+model NursingTask {
+  id                    String               @id @default(uuid()) @db.Uuid
+  preparation_id        String               @db.Uuid
+  task_type              String               @db.VarChar(40)
+  title                  String               @db.VarChar(200)
+  instruction            String?
+  scheduled_at           DateTime             @db.Timestamptz(6)
+  assigned_nurse_name    String?              @db.VarChar(150)
+  status                 String               @default("PENDING") @db.VarChar(20)
+  result                 String?
+  completed_at           DateTime?            @db.Timestamptz(6)
+  created_at             DateTime             @default(now()) @db.Timestamptz(6)
+  preparation            EmergencyPreparation @relation(fields: [preparation_id], references: [id], onDelete: Cascade)
+
+  @@index([preparation_id, status, scheduled_at])
+  @@map("nursing_tasks")
+}
+
+model NursingVital {
+  id                    String               @id @default(uuid()) @db.Uuid
+  preparation_id        String               @db.Uuid
+  pulse                 String?              @db.VarChar(100)
+  blood_pressure        String?              @db.VarChar(100)
+  spo2                  String?              @db.VarChar(100)
+  temperature           String?              @db.VarChar(100)
+  respiratory_rate      String?              @db.VarChar(100)
+  consciousness         String?              @db.VarChar(100)
+  pain_score            String?              @db.VarChar(100)
+  note                  String?
+  recorded_by_name      String?              @db.VarChar(150)
+  recorded_at           DateTime             @default(now()) @db.Timestamptz(6)
+  preparation           EmergencyPreparation @relation(fields: [preparation_id], references: [id], onDelete: Cascade)
+
+  @@index([preparation_id, recorded_at])
+  @@map("nursing_vitals")
+}
+
+model NursingAlert {
+  id                    String               @id @default(uuid()) @db.Uuid
+  preparation_id        String               @db.Uuid
+  priority              String               @db.VarChar(20)
+  reason                String
+  clinical_snapshot     String?
+  status                String               @default("NEW") @db.VarChar(20)
+  created_by_name       String?              @db.VarChar(150)
+  acknowledged_at       DateTime?            @db.Timestamptz(6)
+  resolved_at           DateTime?            @db.Timestamptz(6)
+  resolution_note       String?
+  created_at            DateTime             @default(now()) @db.Timestamptz(6)
+  preparation           EmergencyPreparation @relation(fields: [preparation_id], references: [id], onDelete: Cascade)
+
+  @@index([status, priority, created_at])
+  @@map("nursing_alerts")
+}
+
+model NursingHandover {
+  id                    String               @id @default(uuid()) @db.Uuid
+  preparation_id        String               @db.Uuid
+  shift                  String               @db.VarChar(20)
+  outgoing_nurse_name   String               @db.VarChar(150)
+  incoming_nurse_name   String               @db.VarChar(150)
+  current_condition     String
+  outstanding_work      String?
+  safety_warning        String?
+  created_at            DateTime             @default(now()) @db.Timestamptz(6)
+  preparation           EmergencyPreparation @relation(fields: [preparation_id], references: [id], onDelete: Cascade)
+
+  @@index([preparation_id, created_at])
+  @@map("nursing_handovers")
+}
+
+model EmergencyWardProgress {
+  id             String               @id @default(uuid()) @db.Uuid
+  preparation_id String               @db.Uuid
+  room_code      String               @db.VarChar(20)
+  assessment     String
+  vital_signs    String?
+  treatment      String?
+  created_at     DateTime             @default(now()) @db.Timestamptz(6)
+  preparation    EmergencyPreparation @relation(fields: [preparation_id], references: [id], onDelete: Cascade)
+
+  @@index([preparation_id, created_at])
+  @@map("emergency_ward_progress")
+}
+
+model EmergencyIcuProgress {
+  id             String               @id @default(uuid()) @db.Uuid
+  preparation_id String               @db.Uuid
+  assessment     String
+  vital_signs    String?
+  treatment      String?
+  created_at     DateTime             @default(now()) @db.Timestamptz(6)
+  preparation    EmergencyPreparation @relation(fields: [preparation_id], references: [id], onDelete: Cascade)
+
+  @@index([preparation_id, created_at])
+  @@map("emergency_icu_progress")
+}
+
+model EmergencyPrescription {
+  id             String                      @id @default(uuid()) @db.Uuid
+  preparation_id String                      @unique @db.Uuid
+  note           String?
+  confirmed_at   DateTime                    @default(now()) @db.Timestamptz(6)
+  dispensed_at   DateTime?                   @db.Timestamptz(6)
+  preparation    EmergencyPreparation        @relation(fields: [preparation_id], references: [id], onDelete: Cascade)
+  items          EmergencyPrescriptionItem[]
+
+  @@map("emergency_prescriptions")
+}
+
+model EmergencyPrescriptionItem {
+  id              String                @id @default(uuid()) @db.Uuid
+  prescription_id String                @db.Uuid
+  medicine_id     String                @db.Uuid
+  dosage          String?
+  quantity        Int                   @default(1)
+  usage           String?
+  prescription    EmergencyPrescription @relation(fields: [prescription_id], references: [id], onDelete: Cascade)
+  medicine        Medicine              @relation(fields: [medicine_id], references: [id], onDelete: Restrict)
+
+  @@index([prescription_id])
+  @@index([medicine_id])
+  @@map("emergency_prescription_items")
+}
+
+model PreparationOrder {
+  id             String                 @id @default(uuid()) @db.Uuid
+  preparation_id String                 @db.Uuid
+  order_type     PreparationOrderType
+  status         PreparationOrderStatus @default(ORDERED)
+  instruction    String?
+  result         String?
+  ordered_at     DateTime               @default(now()) @db.Timestamptz(6)
+  started_at     DateTime?              @db.Timestamptz(6)
+  completed_at   DateTime?              @db.Timestamptz(6)
+  preparation    EmergencyPreparation   @relation(fields: [preparation_id], references: [id], onDelete: Cascade)
+
+  @@unique([preparation_id, order_type])
+  @@index([status])
+  @@map("preparation_orders")
+}
+
+model EmergencyAssessment {
+  id                 String        @id @default(uuid()) @db.Uuid
+  emergency_case_id  String        @unique @db.Uuid
+  pulse_bpm          Int?
+  systolic_pressure  Int?
+  diastolic_pressure Int?
+  spo2_percent       Float?
+  temperature_c      Float?
+  respiratory_rate   Int?
+  pain_score         Int?
+  consciousness      String?       @db.VarChar(100)
+  symptoms           String?
+  initial_assessment String?
+  important_history  String?
+  allergies          String?
+  assessed_at        DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime      @updatedAt @db.Timestamptz(6)
+  emergency_case     EmergencyCase @relation(fields: [emergency_case_id], references: [id], onDelete: Cascade)
+
+  @@map("emergency_assessments")
+}
+
+model EmergencyIntervention {
+  id                  String        @id @default(uuid()) @db.Uuid
+  emergency_case_id   String        @db.Uuid
+  recorded_by_user_id String        @db.Uuid
+  intervention_type   String        @db.VarChar(100)
+  details             String?
+  performed_at        DateTime      @db.Timestamptz(6)
+  created_at          DateTime      @default(now()) @db.Timestamptz(6)
+  emergency_case      EmergencyCase @relation(fields: [emergency_case_id], references: [id], onDelete: Cascade)
+  recorded_by         User          @relation(fields: [recorded_by_user_id], references: [id], onDelete: Restrict)
+
+  @@index([emergency_case_id, performed_at])
+  @@index([recorded_by_user_id])
+  @@map("emergency_interventions")
+}
+
+model Doctor {
+  id                  String    @id @default(uuid()) @db.Uuid
+  user_id             String    @unique @db.Uuid
+  doctor_code         String    @unique @db.VarChar(30)
+  full_name           String    @db.VarChar(150)
+  date_of_birth       DateTime? @db.Date
+  gender              Gender?
+  specialization      String    @db.VarChar(100)
+  years_of_experience Int       @default(0)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @updatedAt @db.Timestamptz(6)
+  user                User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  appointments        Appointment[]
+  rooms               Room[]
+
+  @@map("doctors")
+}
+
+model Appointment {
+  id               String            @id @default(uuid()) @db.Uuid
+  appointment_code String            @unique @db.VarChar(6)
+  patient_id       String            @db.Uuid
+  doctor_id        String?           @db.Uuid
+  appointment_date DateTime          @db.Date
+  appointment_time DateTime          @db.Time(0)
+  note             String?
+  status           AppointmentStatus @default(BOOKED)
+  /// Thời điểm bệnh nhân được xác nhận đã đến quầy tiếp nhận.
+  checked_in_at    DateTime?         @db.Timestamptz(6)
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime          @updatedAt @db.Timestamptz(6)
+  patient          Patient           @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  doctor           Doctor?           @relation(fields: [doctor_id], references: [id], onDelete: SetNull)
+  medical_visits   MedicalVisit[]
+
+  @@index([patient_id])
+  @@index([doctor_id])
+  @@index([appointment_date, appointment_time])
+  @@map("appointments")
+}
+
+model Room {
+  id          String       @id @default(uuid()) @db.Uuid
+  room_code   String       @unique @db.VarChar(20)
+  name        String       @db.VarChar(100)
+  doctor_id   String?      @db.Uuid
+  floor_id    String       @db.Uuid
+  function_id String       @db.Uuid
+  status      RoomStatus   @default(AVAILABLE)
+  created_at  DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime     @updatedAt @db.Timestamptz(6)
+  doctor      Doctor?      @relation(fields: [doctor_id], references: [id], onDelete: SetNull)
+  floor       Floor        @relation(fields: [floor_id], references: [id], onDelete: Restrict)
+  function    RoomFunction @relation(fields: [function_id], references: [id], onDelete: Restrict)
+  received_visits MedicalVisit[] @relation("ReceivingRoom")
+  visit_steps     VisitStep[]    @relation("VisitStepRoom")
+
+  @@index([doctor_id])
+  @@index([floor_id])
+  @@index([function_id])
+  @@index([status])
+  @@map("rooms")
+}
+
+model RoomFunction {
+  id            String   @id @default(uuid()) @db.Uuid
+  function_code String   @unique @db.VarChar(30)
+  name          String   @db.VarChar(100)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+  rooms         Room[]
+  service_prices ServicePrice[]
+
+  @@index([name])
+  @@map("room_functions")
+}
+
+model FloorFunction {
+  id            String   @id @default(uuid()) @db.Uuid
+  function_code String   @unique @db.VarChar(30)
+  name          String   @db.VarChar(100)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+  floors        Floor[]
+
+  @@index([name])
+  @@map("floor_functions")
+}
+
+model MedicalVisit {
+  id                String             @id @default(uuid()) @db.Uuid
+  visit_code        String             @unique @db.VarChar(20)
+  appointment_id    String?            @db.Uuid
+  patient_id        String             @db.Uuid
+  receiving_room_id String             @db.Uuid
+  status            MedicalVisitStatus @default(IN_PROGRESS)
+  created_at        DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime           @updatedAt @db.Timestamptz(6)
+  patient           Patient            @relation(fields: [patient_id], references: [id], onDelete: Restrict)
+  appointment       Appointment?       @relation(fields: [appointment_id], references: [id], onDelete: Restrict)
+  receiving_room    Room               @relation("ReceivingRoom", fields: [receiving_room_id], references: [id], onDelete: Restrict)
+  steps             VisitStep[]
+  reception_record  ReceptionRecord?
+  examination_record ExaminationRecord?
+  prescription       Prescription?
+  isolation_episode  IsolationEpisode?
+  escalated_emergency_cases EmergencyCase[] @relation("EscalatedEmergencyVisit")
+  invoice            Invoice?
+
+  @@index([patient_id])
+  @@index([appointment_id])
+  @@index([receiving_room_id])
+  @@index([status])
+  @@map("medical_visits")
+}
+
+model IsolationEpisode {
+  id                    String         @id @default(uuid()) @db.Uuid
+  emergency_case_id     String?        @unique @db.Uuid
+  medical_visit_id      String?        @unique @db.Uuid
+  source_room           String         @db.VarChar(20)
+  status                String         @default("REQUESTED") @db.VarChar(20)
+  isolation_type        String         @db.VarChar(30)
+  reason                String
+  diagnosis             String?
+  transport_condition   String?
+  vital_signs           String?
+  ppe_requirements      String?
+  handoff_note          String?
+  requested_at          DateTime       @default(now()) @db.Timestamptz(6)
+  admitted_at           DateTime?      @db.Timestamptz(6)
+  final_assessment      String?
+  infection_risk_result String?
+  destination_room      String?        @db.VarChar(20)
+  released_at           DateTime?      @db.Timestamptz(6)
+  emergency_case        EmergencyCase? @relation(fields: [emergency_case_id], references: [id], onDelete: Cascade)
+  medical_visit         MedicalVisit?  @relation(fields: [medical_visit_id], references: [id], onDelete: Cascade)
+  monitoring_records    IsolationMonitoring[]
+
+  @@index([status, requested_at])
+  @@map("isolation_episodes")
+}
+
+model IsolationMonitoring {
+  id                  String           @id @default(uuid()) @db.Uuid
+  isolation_episode_id String          @db.Uuid
+  symptoms            String
+  vital_signs         String?
+  respiratory_support String?
+  treatment_response  String?
+  test_name           String?
+  test_result         String?
+  infection_note      String?
+  recorded_at         DateTime         @default(now()) @db.Timestamptz(6)
+  episode             IsolationEpisode @relation(fields: [isolation_episode_id], references: [id], onDelete: Cascade)
+
+  @@index([isolation_episode_id, recorded_at])
+  @@map("isolation_monitoring")
+}
+
+model ReceptionRecord {
+  id                       String       @id @default(uuid()) @db.Uuid
+  medical_visit_id         String       @unique @db.Uuid
+  temperature_c            Float?
+  systolic_blood_pressure  Int?
+  diastolic_blood_pressure Int?
+  heart_rate               Int?
+  spo2                     Float?
+  height_cm                Float?
+  weight_kg                Float?
+  visit_reason             String?
+  reception_note           String?
+  created_at               DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime     @updatedAt @db.Timestamptz(6)
+  medical_visit            MedicalVisit @relation(fields: [medical_visit_id], references: [id], onDelete: Cascade)
+
+  @@map("reception_records")
+}
+
+model VisitStep {
+  id               String          @id @default(uuid()) @db.Uuid
+  medical_visit_id String          @db.Uuid
+  room_id          String          @db.Uuid
+  status           VisitStepStatus @default(PENDING)
+  started_at       DateTime?       @db.Timestamptz(6)
+  completed_at     DateTime?       @db.Timestamptz(6)
+  instruction      String?
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime        @updatedAt @db.Timestamptz(6)
+  medical_visit    MedicalVisit    @relation(fields: [medical_visit_id], references: [id], onDelete: Cascade)
+  room             Room            @relation("VisitStepRoom", fields: [room_id], references: [id], onDelete: Restrict)
+  clinical_result  ClinicalResult?
+
+  @@index([medical_visit_id])
+  @@index([room_id, status])
+  @@map("visit_steps")
+}
+
+model ClinicalResult {
+  id            String    @id @default(uuid()) @db.Uuid
+  visit_step_id String    @unique @db.Uuid
+  result        String
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @updatedAt @db.Timestamptz(6)
+  visit_step    VisitStep @relation(fields: [visit_step_id], references: [id], onDelete: Cascade)
+
+  @@map("clinical_results")
+}
+
+model Floor {
+  id            String        @id @default(uuid()) @db.Uuid
+  floor_code    String        @unique @db.VarChar(20)
+  floor_number  Int           @unique
+  name          String        @db.VarChar(100)
+  function_id   String        @db.Uuid
+  status        FloorStatus   @default(ACTIVE)
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime      @updatedAt @db.Timestamptz(6)
+  function      FloorFunction @relation(fields: [function_id], references: [id], onDelete: Restrict)
+  rooms         Room[]
+
+  @@index([function_id])
+  @@index([status])
+  @@map("floors")
+}
+
+model Medicine {
+  id             String         @id @default(uuid()) @db.Uuid
+  medicine_code  String         @unique @db.VarChar(20)
+  name           String         @db.VarChar(150)
+  unit           String         @db.VarChar(30)
+  stock_quantity Int            @default(0)
+  status         MedicineStatus @default(AVAILABLE)
+  created_at     DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime       @updatedAt @db.Timestamptz(6)
+  categories     MedicineCategoryAssignment[]
+  prescription_items PrescriptionItem[]
+  emergency_prescription_items EmergencyPrescriptionItem[]
+  prices         MedicinePrice[]
+
+  @@index([name])
+  @@index([status])
+  @@map("medicines")
+}
+
+model ExaminationRecord {
+  id                  String       @id @default(uuid()) @db.Uuid
+  medical_visit_id    String       @unique @db.Uuid
+  preliminary_diagnosis String?
+  next_evaluation       String?
+  /// Khám lâm sàng (mọi phòng khám).
+  clinical_findings     String?
+  /// Dữ liệu riêng theo chuyên khoa, ví dụ { "type": "PEDIATRICS", ... }.
+  specialty_data        Json?
+  final_diagnosis     String?
+  treatment_direction String?
+  conclusion          String?
+  doctor_advice       String?
+  created_at          DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime     @updatedAt @db.Timestamptz(6)
+  medical_visit       MedicalVisit @relation(fields: [medical_visit_id], references: [id], onDelete: Cascade)
+
+  @@map("examination_records")
+}
+
+model Prescription {
+  id               String             @id @default(uuid()) @db.Uuid
+  medical_visit_id String             @unique @db.Uuid
+  note             String?
+  confirmed_at     DateTime?          @db.Timestamptz(6)
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime           @updatedAt @db.Timestamptz(6)
+  medical_visit    MedicalVisit       @relation(fields: [medical_visit_id], references: [id], onDelete: Cascade)
+  items            PrescriptionItem[]
+
+  @@map("prescriptions")
+}
+
+model PrescriptionItem {
+  id              String       @id @default(uuid()) @db.Uuid
+  prescription_id String       @db.Uuid
+  medicine_id     String       @db.Uuid
+  dosage          String?
+  quantity        Int          @default(1)
+  usage           String?
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime     @updatedAt @db.Timestamptz(6)
+  prescription    Prescription @relation(fields: [prescription_id], references: [id], onDelete: Cascade)
+  medicine        Medicine     @relation(fields: [medicine_id], references: [id], onDelete: Restrict)
+
+  @@index([prescription_id])
+  @@index([medicine_id])
+  @@map("prescription_items")
+}
+
+model MedicineCategory {
+  id            String                   @id @default(uuid()) @db.Uuid
+  category_code String                   @unique @db.VarChar(50)
+  name          String                   @db.VarChar(100)
+  description   String?
+  parent_id     String?                  @db.Uuid
+  status        MedicineCategoryStatus   @default(ACTIVE)
+  created_at    DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime                 @updatedAt @db.Timestamptz(6)
+  parent        MedicineCategory?        @relation("MedicineCategoryHierarchy", fields: [parent_id], references: [id], onDelete: SetNull)
+  children      MedicineCategory[]       @relation("MedicineCategoryHierarchy")
+  medicines     MedicineCategoryAssignment[]
+
+  @@index([name])
+  @@index([parent_id])
+  @@index([status])
+  @@map("medicine_categories")
+}
+
+model MedicineCategoryAssignment {
+  medicine_id String             @db.Uuid
+  category_id String             @db.Uuid
+  created_at  DateTime           @default(now()) @db.Timestamptz(6)
+  medicine    Medicine           @relation(fields: [medicine_id], references: [id], onDelete: Cascade)
+  category    MedicineCategory   @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@id([medicine_id, category_id])
+  @@index([category_id])
+  @@map("medicine_category_assignments")
+}
+
+/// Nhóm dịch vụ trong bảng giá.
+enum ServiceCategory {
+  EXAMINATION
+  IMAGING
+  LABORATORY
+  FUNCTIONAL_TEST
+  EMERGENCY
+  SURGERY
+  BED_DAY
+}
+
+/// Bảng giá dịch vụ (VND). Đổi giá bằng cách thêm dòng mới với effective_from mới,
+/// không sửa đè dòng cũ — để hóa đơn đã lập giữ đúng giá tại thời điểm phát sinh.
+model ServicePrice {
+  id               String          @id @default(uuid()) @db.Uuid
+  service_code     String          @db.VarChar(40)
+  name             String          @db.VarChar(200)
+  category         ServiceCategory
+  /// Chức năng phòng thực hiện dịch vụ (null nếu dịch vụ không gắn một phòng cụ thể).
+  room_function_id String?         @db.Uuid
+  /// Đơn vị tính: lần, ngày, ca...
+  unit             String          @db.VarChar(30)
+  /// Đơn giá, đơn vị VND (số nguyên).
+  unit_price       Int
+  effective_from   DateTime        @db.Date
+  effective_to     DateTime?       @db.Date
+  note             String?
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime        @updatedAt @db.Timestamptz(6)
+  room_function    RoomFunction?   @relation(fields: [room_function_id], references: [id], onDelete: SetNull)
+
+  @@unique([service_code, effective_from])
+  @@index([room_function_id])
+  @@index([category])
+  @@map("service_prices")
+}
+
+/// Bảng giá thuốc (VND / đơn vị tính của thuốc). Đổi giá bằng cách thêm dòng mới với effective_from mới,
+/// không sửa đè dòng cũ — để đơn thuốc đã cấp giữ đúng giá tại thời điểm phát sinh.
+model MedicinePrice {
+  id             String    @id @default(uuid()) @db.Uuid
+  medicine_id    String    @db.Uuid
+  /// Đơn giá cho 1 đơn vị tính của thuốc (Viên, Gói...), đơn vị VND (số nguyên).
+  unit_price     Int
+  effective_from DateTime  @db.Date
+  effective_to   DateTime? @db.Date
+  note           String?
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @updatedAt @db.Timestamptz(6)
+  medicine       Medicine  @relation(fields: [medicine_id], references: [id], onDelete: Cascade)
+
+  @@unique([medicine_id, effective_from])
+  @@map("medicine_prices")
+}
+
+
+enum InvoiceStatus {
+  UNPAID
+  PAID
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CARD
+}
+
+enum InvoiceItemGroup {
+  EXAMINATION
+  PARACLINICAL
+  EMERGENCY
+  SURGERY
+  BED_DAY
+  MEDICINE
+}
+
+/// Hóa đơn viện phí, thu tại CAS-103.
+/// - Khám thường: tạo khi bác sĩ "Hoàn tất khám" (medical_visit_id).
+/// - Cấp cứu / nội trú: tạo khi ra viện qua quầy thuốc (emergency_case_id); gộp cả lượt khám ngoại trú trước đó nếu có.
+/// Dòng hóa đơn chốt tên + đơn giá tại thời điểm lập, không phụ thuộc bảng giá về sau.
+model Invoice {
+  id                String         @id @default(uuid()) @db.Uuid
+  invoice_code      String         @unique @db.VarChar(20)
+  medical_visit_id  String?        @unique @db.Uuid
+  emergency_case_id String?        @unique @db.Uuid
+  patient_name      String         @db.VarChar(150)
+  patient_code      String?        @db.VarChar(30)
+  record_code       String         @db.VarChar(20)
+  source_room       String?        @db.VarChar(20)
+  /// Nơi bệnh nhân đi tiếp sau khi thu (PHM-105), null = ra về.
+  next_destination  String?        @db.VarChar(20)
+  status            InvoiceStatus  @default(UNPAID)
+  total_amount      Int
+  payment_method    PaymentMethod?
+  amount_received   Int?
+  receipt_no        String?        @unique @db.VarChar(20)
+  cashier_note      String?
+  /// BHYT dùng cho hóa đơn này (không lưu thẻ riêng — đây là lịch sử sử dụng BHYT).
+  /// Có BHYT: giảm 80% toàn bộ hóa đơn (bệnh nhân trả 20%).
+  insurance_applied     Boolean  @default(false)
+  /// Mã thẻ BHYT hoặc số CCCD nhân viên nhập khi thu tiền.
+  insurance_number      String?  @db.VarChar(30)
+  insurance_holder_name String?  @db.VarChar(150)
+  insurance_amount      Int      @default(0)
+  /// Số tiền bệnh nhân thực trả (= total_amount − insurance_amount), ghi khi thu.
+  patient_amount        Int?
+  paid_at           DateTime?      @db.Timestamptz(6)
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime       @updatedAt @db.Timestamptz(6)
+  medical_visit     MedicalVisit?  @relation(fields: [medical_visit_id], references: [id], onDelete: Cascade)
+  emergency_case    EmergencyCase? @relation(fields: [emergency_case_id], references: [id], onDelete: Cascade)
+  items             InvoiceItem[]
+
+  @@index([status, created_at])
+  @@index([paid_at])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id           String           @id @default(uuid()) @db.Uuid
+  invoice_id   String           @db.Uuid
+  group        InvoiceItemGroup
+  item_code    String           @db.VarChar(40)
+  name         String           @db.VarChar(200)
+  unit         String           @db.VarChar(30)
+  quantity     Int
+  unit_price   Int
+  amount       Int
+  /// Thuộc phần nào của đợt điều trị, ví dụ "Lượt khám VIS-123 · GEN-201" hoặc "Cấp cứu ER-2651204".
+  origin       String?          @db.VarChar(120)
+  source_room  String?          @db.VarChar(20)
+  performed_at DateTime?        @db.Timestamptz(6)
+  /// Diễn giải chi tiết: thời gian nằm giường, kết quả lúc..., liều dùng...
+  detail       String?
+  sort_order   Int              @default(0)
+  invoice      Invoice          @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([invoice_id])
+  @@map("invoice_items")
+}
+
+/// Loại thông báo gửi bệnh nhân.
+enum PatientNotificationType {
+  /// Được mời đến phòng tiếp theo trong lượt khám (phòng khám, cận lâm sàng, quay lại nhận kết luận).
+  NEXT_ROOM
+  /// Có hóa đơn chờ thanh toán tại quầy thu ngân.
+  PAYMENT_DUE
+  /// Đã thanh toán, mời đến nhà thuốc nhận thuốc.
+  MEDICINE_READY
+  /// Nhắc lịch hẹn sắp tới.
+  APPOINTMENT_REMINDER
+}
+
+/// Thông báo cho bệnh nhân (chỉ bệnh nhân có tài khoản mới xem được).
+/// Ghi ngay khi có sự kiện; dedupe_key bảo đảm một sự kiện chỉ sinh một thông báo.
+model PatientNotification {
+  id          String                  @id @default(uuid()) @db.Uuid
+  patient_id  String                  @db.Uuid
+  type        PatientNotificationType
+  title       String                  @db.VarChar(200)
+  body        String
+  /// Trang mở khi bệnh nhân bấm vào thông báo.
+  href        String?                 @db.VarChar(200)
+  /// Cần bệnh nhân làm ngay (đến phòng, thanh toán...).
+  urgent      Boolean                 @default(false)
+  /// Khóa chống trùng, vd. "PAYMENT_DUE:<invoice_id>", "REMINDER_DAY:<appointment_id>".
+  dedupe_key  String                  @unique @db.VarChar(150)
+  read_at     DateTime?               @db.Timestamptz(6)
+  created_at  DateTime                @default(now()) @db.Timestamptz(6)
+  patient     Patient                 @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+
+  @@index([patient_id, created_at])
+  @@map("patient_notifications")
+}

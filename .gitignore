@@ -1,0 +1,52 @@
+# Bí mật / biến môi trường (giữ lại file mẫu .env.example)
+.env
+.env.*
+!.env.example
+**/src/.env
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.vercel
+
+# Prisma client tự sinh (chạy `npx prisma generate` sau khi clone)
+hospital_api_system/src/generated/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+*.iml
+
+# Android / iOS build & local config
+**/android/.gradle/
+**/android/local.properties
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+*.keystore
+*.jks
+key.properties
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+~$*

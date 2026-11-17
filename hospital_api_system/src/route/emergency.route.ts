@@ -1,0 +1,33 @@
+import { Router } from 'express';
+import { getEmergencyCase, getEmergencyCases, getEmergencyPharmacyTransfers, getEmergencyPreparations, getPostoperativeTransfers, getSurgicalTransfers, getWardTransfers, postEmergencyCase, postEmergencyIntervention, postEmergencyPreparation, postIntensiveCareProgress, postWardProgress, putCloseIntensiveCare, putCompleteEmergencySurgery, putCompletePreparationOrder, putDispenseEmergencyPrescription, putEmergencyAssessment, putEmergencyPrescription, putPreparationDisposition, putStartEmergencyPreparation, putStartEmergencySurgery, putWardDisposition, putWardPrescription } from '../controller/emergency.controller.js';
+import { UserRole } from '../generated/prisma/client.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { validateCloseIntensiveCare, validateCompleteEmergencySurgery, validateCompletePreparationOrder, validateCreateEmergencyCase, validateCreateEmergencyIntervention, validateDecidePreparationDisposition, validateDecideWardDisposition, validateRequestEmergencyPreparation, validateSaveEmergencyPrescription, validateSaveIntensiveCareProgress, validateSaveWardProgress, validateUpdateEmergencyAssessment } from '../validation/emergency.validation.js';
+
+const emergencyRouter = Router();
+emergencyRouter.use(authenticate, authorize(UserRole.DOCTOR));
+emergencyRouter.get('/cases', getEmergencyCases);
+emergencyRouter.post('/cases', validateCreateEmergencyCase, postEmergencyCase);
+emergencyRouter.get('/cases/:emergencyCaseId', getEmergencyCase);
+emergencyRouter.put('/cases/:emergencyCaseId/assessment', validateUpdateEmergencyAssessment, putEmergencyAssessment);
+emergencyRouter.post('/cases/:emergencyCaseId/interventions', validateCreateEmergencyIntervention, postEmergencyIntervention);
+emergencyRouter.post('/cases/:emergencyCaseId/preparation', validateRequestEmergencyPreparation, postEmergencyPreparation);
+emergencyRouter.get('/preparations', getEmergencyPreparations);
+emergencyRouter.get('/surgical-transfers', getSurgicalTransfers);
+emergencyRouter.get('/postoperative-transfers', getPostoperativeTransfers);
+emergencyRouter.put('/surgeries/:preparationId/start', putStartEmergencySurgery);
+emergencyRouter.put('/surgeries/:preparationId/complete', validateCompleteEmergencySurgery, putCompleteEmergencySurgery);
+emergencyRouter.put('/intensive-care/:preparationId/close', validateCloseIntensiveCare, putCloseIntensiveCare);
+emergencyRouter.post('/intensive-care/:preparationId/progress', validateSaveIntensiveCareProgress, postIntensiveCareProgress);
+emergencyRouter.put('/intensive-care/:preparationId/prescription', validateSaveEmergencyPrescription, putEmergencyPrescription);
+emergencyRouter.get('/pharmacy-transfers', getEmergencyPharmacyTransfers);
+emergencyRouter.put('/pharmacy-transfers/:preparationId/dispense', putDispenseEmergencyPrescription);
+emergencyRouter.get('/ward-transfers', getWardTransfers);
+emergencyRouter.post('/ward-transfers/:preparationId/progress', validateSaveWardProgress, postWardProgress);
+emergencyRouter.put('/ward-transfers/:preparationId/prescription', validateSaveEmergencyPrescription, putWardPrescription);
+emergencyRouter.put('/ward-transfers/:preparationId/disposition', validateDecideWardDisposition, putWardDisposition);
+emergencyRouter.put('/preparations/:preparationId/start', putStartEmergencyPreparation);
+emergencyRouter.put('/preparation-orders/:orderId/result', validateCompletePreparationOrder, putCompletePreparationOrder);
+emergencyRouter.put('/preparations/:preparationId/disposition', validateDecidePreparationDisposition, putPreparationDisposition);
+
+export default emergencyRouter;

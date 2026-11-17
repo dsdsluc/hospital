@@ -1,0 +1,278 @@
+CHỨC NĂNG DÀNH CHO BỆNH NHÂN
+================================================================================
+
+TỔNG QUAN
+--------------------------------------------------------------------------------
+Bệnh nhân dùng hệ thống (web hoặc ứng dụng điện thoại) để:
+  - Đặt lịch khám trước, không phải xếp hàng đăng ký.
+  - Được chỉ đường từng bước trong bệnh viện suốt lượt khám: đến phòng nào,
+    tầng mấy, làm gì tiếp theo.
+  - Biết khi nào cần thanh toán và khi nào nhận thuốc.
+  - Xem lại toàn bộ kết quả khám, đơn thuốc và hóa đơn sau khi về nhà.
+  - Tự quản lý thông tin cá nhân và chỉ số sức khỏe.
+
+Một lần đi khám diễn ra theo trình tự:
+
+  Đặt lịch  ->  Tiếp nhận  ->  Khám bệnh  ->  Cận lâm sàng (nếu có)
+            ->  Nghe kết luận  ->  Thanh toán  ->  Nhận thuốc  ->  Xem lại hồ sơ
+
+Các phần dưới đây mô tả từng bước theo đúng thứ tự đó.
+
+
+1. TẠO TÀI KHOẢN VÀ ĐĂNG NHẬP
+--------------------------------------------------------------------------------
+Đăng ký
+  - Bệnh nhân nhập: họ và tên, email, số điện thoại (không bắt buộc), mật khẩu
+    (tối thiểu 6 ký tự) và nhập lại mật khẩu để xác nhận.
+  - Hệ thống hiển thị độ mạnh mật khẩu để bệnh nhân chọn mật khẩu an toàn hơn.
+  - Khi tài khoản được tạo, hệ thống cấp cho bệnh nhân một MÃ BỆNH NHÂN riêng.
+    Mã này dùng để quầy tiếp nhận tìm đúng hồ sơ ở những lần khám sau.
+
+Đăng nhập
+  - Đăng nhập bằng email và mật khẩu.
+  - Có thể chọn "ghi nhớ đăng nhập" để lần sau mở ứng dụng không phải nhập lại.
+
+Bệnh nhân vãng lai (không có tài khoản)
+  - Người đến khám trực tiếp mà không đặt lịch, không có tài khoản vẫn được
+    khám bình thường. Quầy tiếp nhận tạo lượt khám thay cho họ.
+  - Bệnh nhân vãng lai KHÔNG có mã bệnh nhân và không dùng được ứng dụng
+    (không xem được chỉ đường, thông báo, hồ sơ trên điện thoại).
+  - Mã bệnh nhân chỉ được tạo khi người đó đăng ký tài khoản.
+
+
+2. ĐẶT LỊCH KHÁM
+--------------------------------------------------------------------------------
+Cách đặt
+  Bước 1. Chọn ngày khám trên lịch tháng (chuyển qua lại tháng trước/tháng sau).
+  Bước 2. Chọn giờ khám. Các mốc giờ cách nhau 30 phút, chia theo buổi:
+            - Buổi sáng : 07:00 - 11:30
+            - Buổi chiều: 12:00 - 16:30
+            - Buổi tối  : 17:00 - 20:00
+          Nếu đặt cho hôm nay, các mốc giờ đã qua bị làm mờ, không chọn được.
+  Bước 3. Mô tả ngắn lý do đi khám / triệu chứng.
+          Ví dụ: "Tôi bị đau đầu và sốt nhẹ trong 2 ngày gần đây".
+          Thông tin này giúp bác sĩ nắm trước tình trạng khi bệnh nhân đến.
+  Bước 4. Xác nhận. Hệ thống cấp một MÃ LỊCH HẸN gồm 6 ký tự.
+
+Quy tắc khi đặt lịch
+  - Không đặt được ngày trong quá khứ, hoặc giờ đã qua của ngày hôm nay.
+  - Không đặt được hai lịch trùng cùng một khung giờ.
+
+Sau khi đặt lịch
+  - Lịch hẹn sắp tới hiện ngay ở trang Tổng quan: ngày, giờ, mã lịch hẹn,
+    lý do khám, bác sĩ (hoặc "Chưa phân công bác sĩ").
+  - Hệ thống NHẮC LỊCH HẸN hai lần: trong vòng 24 giờ và trong vòng 2 giờ
+    trước giờ hẹn.
+  - Bệnh nhân có thể HỦY LỊCH nếu không đến được. Lịch đã hủy không khôi
+    phục lại được; nếu muốn khám thì đặt lịch mới.
+
+Quản lý lịch hẹn
+  Trang Lịch khám gồm hai phần:
+  - Sắp tới : các lịch hẹn chưa đến ngày, có nút hủy.
+  - Lịch sử : tất cả lịch đã đặt, lọc được theo trạng thái:
+                Sắp tới        - lịch còn hiệu lực, chưa đến ngày.
+                Đang khám      - bệnh nhân đã đến và đang trong lượt khám.
+                Chờ nhận thuốc - đã khám xong, còn chờ nhận thuốc.
+                Đã khám        - lượt khám đã hoàn tất.
+                Đã hủy         - bệnh nhân đã hủy lịch.
+                Không đến      - đã qua giờ hẹn nhưng bệnh nhân không đến.
+  Lịch đã khám có liên kết đến mã lượt khám tương ứng để xem lại hồ sơ.
+
+
+3. ĐẾN BỆNH VIỆN: TIẾP NHẬN
+--------------------------------------------------------------------------------
+  - Đúng ngày hẹn, bệnh nhân đến QUẦY TIẾP NHẬN (REC-101, tầng 1) và đọc mã
+    lịch hẹn hoặc mã bệnh nhân.
+  - Nhân viên tiếp nhận:
+      + Tìm lịch hẹn và xác nhận bệnh nhân đã đến.
+      + Đo các chỉ số sinh hiệu: mạch, huyết áp, nhiệt độ, nhịp thở,
+        SpO2, cân nặng...
+      + Xếp bệnh nhân vào phòng khám phù hợp với triệu chứng
+        (khám tổng quát, nhi, tai mũi họng, da liễu, nội khoa...).
+  - Từ lúc này bệnh nhân có một LƯỢT KHÁM với mã riêng (dạng VIS-xxxxxxxx).
+    Mọi kết quả, đơn thuốc, hóa đơn của lần đi khám này đều gắn với mã đó.
+  - Ứng dụng gửi thông báo mời bệnh nhân đến phòng khám đã được xếp.
+
+  Lưu ý: lịch hẹn chỉ được tiếp nhận trong ngày hẹn. Lịch đã qua ngày không
+  dùng lại được; lịch của ngày khác cần được chuyển sang hôm nay mới tiếp nhận.
+
+
+4. TRONG LÚC KHÁM: CHỈ ĐƯỜNG TỪNG BƯỚC
+--------------------------------------------------------------------------------
+Khi có lượt khám đang diễn ra, trang Tổng quan chuyển sang khối
+"LƯỢT KHÁM HIỆN TẠI" và tự cập nhật liên tục (vài giây một lần), cho biết:
+
+  - Bước hiện tại      : bệnh nhân đang ở đâu / đang chờ phòng nào.
+  - Phòng tiếp theo    : tên phòng, mã phòng, tầng.
+  - Hướng dẫn đường đi : cách đi từ vị trí hiện tại đến phòng đó.
+  - Hành trình đầy đủ  : danh sách tất cả các phòng trong lượt khám, phòng
+                         nào đã xong, phòng nào đang chờ, phòng nào còn lại.
+
+Trình tự thường gặp
+  a) Vào phòng khám, bác sĩ hỏi bệnh, thăm khám.
+  b) Nếu cần thêm thông tin, bác sĩ chỉ định cận lâm sàng: xét nghiệm máu,
+     siêu âm, X-quang, CT, điện tim...
+     -> Ứng dụng hiện ngay các phòng cần đi, kèm tầng và đường đi.
+  c) Mỗi khi một phòng trả kết quả:
+     -> Nếu còn phòng chưa làm: ứng dụng báo đi tiếp phòng còn lại.
+     -> Nếu đã đủ kết quả: ứng dụng báo QUAY VỀ PHÒNG KHÁM để nghe bác sĩ
+        kết luận.
+  d) Bác sĩ xem kết quả, đưa ra chẩn đoán, lời dặn và kê đơn thuốc.
+
+Lợi ích: bệnh nhân không phải hỏi đường, không phải đứng chờ gọi tên mà không
+biết mình đang ở bước nào, và biết trước còn bao nhiêu bước nữa.
+
+Trường hợp nặng
+  Nếu trong lúc khám bác sĩ phát hiện tình trạng cần cấp cứu hoặc nhập viện,
+  bệnh nhân được chuyển lên khu điều trị. Khi đó lượt khám ngoại trú dừng lại
+  và chi phí được gộp vào hóa đơn ra viện (xem mục 5).
+
+
+5. KHÁM XONG: THANH TOÁN VÀ NHẬN THUỐC
+--------------------------------------------------------------------------------
+Bước 1 - Hóa đơn được lập tự động
+  Khi bác sĩ bấm hoàn tất khám, hệ thống tự lập hóa đơn chi tiết theo nhóm:
+    - Khám bệnh        : tiền công khám.
+    - Cận lâm sàng     : từng xét nghiệm, siêu âm, chụp chiếu đã làm.
+    - Thuốc            : từng loại thuốc trong đơn, số lượng x đơn giá.
+    - (Nếu nhập viện)  : cấp cứu & thủ thuật, phẫu thuật, ngày giường.
+  Ứng dụng báo "CÓ HÓA ĐƠN CẦN THANH TOÁN" và chỉ đường đến
+  QUẦY THU NGÂN (CAS-103, tầng 1).
+
+Bước 2 - Thanh toán tại quầy thu ngân
+  - Nếu có thẻ BẢO HIỂM Y TẾ: bệnh nhân đưa mã thẻ (hoặc số CCCD) và họ tên
+    trên thẻ. Bảo hiểm chi trả 80% toàn bộ hóa đơn, bệnh nhân trả 20%.
+    Thông tin thẻ đã dùng được lưu lại trên hóa đơn đó.
+  - Phương thức thanh toán: tiền mặt, chuyển khoản hoặc thẻ.
+  - Thu ngân xác nhận, hóa đơn chuyển sang "Đã thanh toán".
+
+Bước 3 - Nhận thuốc
+  - Thanh toán xong, ứng dụng báo "THUỐC ĐÃ SẴN SÀNG" và chỉ đường đến
+    NHÀ THUỐC (PHM-105).
+  - Dược sĩ cấp thuốc theo đơn và hướng dẫn cách dùng.
+  - Hóa đơn chưa thanh toán thì nhà thuốc KHÔNG cấp thuốc. Vì vậy phải
+    qua quầy thu ngân trước.
+
+Bước 4 - Kết thúc
+  Nhận thuốc xong, lượt khám chuyển sang "Đã hoàn thành". Toàn bộ thông tin
+  được lưu vào Hồ sơ khám.
+
+Trường hợp nhập viện / cấp cứu
+  Phí của lượt khám ngoại trú được GỘP vào hóa đơn ra viện. Bệnh nhân chỉ
+  thanh toán một lần khi xuất viện (gồm cả ngày giường, thủ thuật, phẫu thuật,
+  thuốc...). Trong Hồ sơ khám, lượt khám đó ghi rõ phí đã gộp vào hồ sơ điều
+  trị nào.
+
+
+6. XEM LẠI HỒ SƠ KHÁM
+--------------------------------------------------------------------------------
+Danh sách lượt khám
+  Mỗi lượt khám hiển thị tóm tắt:
+    - Mã lượt khám, ngày khám, phòng khám.
+    - Trạng thái: Đang khám / Đã hoàn thành.
+    - Chẩn đoán ngắn gọn.
+    - Viện phí: số tiền bệnh nhân trả, có dùng BHYT hay không,
+      Đã / Chưa thanh toán.
+    - Số kết quả phòng chức năng đã có (ví dụ 5/5).
+
+Chi tiết một lượt khám
+  a) Kết luận của bác sĩ
+       - Chẩn đoán.
+       - Hướng điều trị (điều trị ngoại trú, hẹn tái khám, nội soi...).
+       - Kết luận tổng hợp từ khám và cận lâm sàng.
+  b) Lời dặn của bác sĩ
+       Chế độ ăn uống, sinh hoạt, kiêng cữ, dấu hiệu cần quay lại khám ngay
+       hoặc đi cấp cứu.
+  c) Đơn thuốc
+       Tên thuốc, số lượng, liều dùng (ví dụ "1 viên x 2 lần/ngày"),
+       cách dùng (trước/sau ăn) và ghi chú của bác sĩ.
+       -> Bệnh nhân uống đúng mà không cần giữ toa giấy.
+  d) Kết quả phòng chức năng (xét nghiệm, siêu âm, X-quang, CT...)
+       Bấm vào từng kết quả để xem chi tiết:
+       - Từng chỉ số kèm đơn vị và KHOẢNG THAM CHIẾU (mức bình thường).
+       - Chỉ số vượt ngưỡng được đánh dấu màu: "Cao" (đỏ cam) hoặc
+         "Thấp" (xanh), chỉ số bình thường ghi "Bình thường".
+       - Thông tin thực hiện: loại xét nghiệm, mẫu bệnh phẩm, thiết bị...
+       - Phần mô tả và kết luận của phòng chức năng.
+       - Thời điểm trả kết quả.
+  e) Viện phí và hóa đơn chi tiết
+       - Tổng chi phí, phần BHYT chi trả, số tiền bệnh nhân trả.
+       - Thông tin thẻ BHYT đã dùng (mã thẻ, họ tên trên thẻ).
+       - Từng khoản phí theo nhóm, mỗi nhóm có tổng tiền riêng.
+       - Phương thức và thời gian thanh toán.
+       - Nếu chưa thanh toán: nhắc đến quầy thu ngân CAS-103.
+
+Hồ sơ được giữ lâu dài, nên lần khám sau bệnh nhân có thể mở cho bác sĩ xem
+kết quả và đơn thuốc cũ để so sánh, tránh làm lại xét nghiệm không cần thiết.
+
+
+7. THÔNG BÁO
+--------------------------------------------------------------------------------
+Mọi thông báo liên quan đến việc khám được gom về một chỗ:
+  - Mời đến phòng tiếp theo  : sau tiếp nhận, khi được chỉ định cận lâm sàng,
+                               khi một phòng trả kết quả, khi cần quay về
+                               phòng khám nghe kết luận.
+  - Có hóa đơn cần thanh toán: ngay khi hóa đơn được lập.
+  - Thuốc đã sẵn sàng        : sau khi thanh toán, nếu có đơn thuốc chờ nhận.
+  - Nhắc lịch hẹn            : trong vòng 24 giờ và 2 giờ trước giờ hẹn.
+
+Bệnh nhân có thể:
+  - Xem tất cả hoặc chỉ thông báo chưa đọc.
+  - Đánh dấu tất cả đã đọc.
+
+Mỗi sự kiện chỉ sinh một thông báo, không bị gửi lặp lại.
+Chỉ bệnh nhân có tài khoản mới nhận được thông báo.
+
+
+8. THÔNG TIN CÁ NHÂN VÀ CHỈ SỐ SỨC KHỎE
+--------------------------------------------------------------------------------
+Bệnh nhân xem được
+  - Mã bệnh nhân, email, số điện thoại.
+  - Ngày tạo hồ sơ và lần cập nhật gần nhất.
+
+Bệnh nhân tự cập nhật được
+  - Thông tin cá nhân: họ và tên, ngày sinh, giới tính, số CCCD, địa chỉ.
+  - Chỉ số sức khỏe  : nhóm máu, chiều cao (cm), cân nặng (kg).
+                       Hệ thống tự tính chỉ số BMI từ chiều cao và cân nặng.
+
+Cập nhật thông tin để làm gì?
+  a) Tiếp nhận nhanh hơn
+     Thông tin đã có sẵn trong hồ sơ, quầy tiếp nhận không phải hỏi và nhập
+     lại mỗi lần đến khám, giảm thời gian chờ.
+  b) Hỗ trợ bác sĩ khám và kê đơn
+     Bác sĩ thấy sẵn tuổi, giới tính, cân nặng, nhóm máu:
+       - Trẻ em: liều thuốc tính theo cân nặng, nên cân nặng đúng giúp kê
+         liều an toàn.
+       - Cấp cứu, phẫu thuật: biết trước nhóm máu giúp xử trí nhanh hơn.
+       - BMI giúp bác sĩ đánh giá tình trạng thừa cân, béo phì, suy dinh dưỡng.
+  c) Hồ sơ chính xác, đúng người
+     Họ tên, ngày sinh, CCCD đúng giúp kết quả, đơn thuốc, hóa đơn ghi đúng
+     người, và đối chiếu được với thẻ bảo hiểm y tế khi thanh toán.
+  d) Liên lạc
+     Địa chỉ và số điện thoại đúng để bệnh viện liên hệ khi cần (nhắc tái
+     khám, báo kết quả...).
+
+
+9. VÍ DỤ MỘT LẦN ĐI KHÁM HOÀN CHỈNH
+--------------------------------------------------------------------------------
+Bệnh nhân Nguyễn Văn A, đau thượng vị và đầy hơi vài ngày.
+
+  Thứ Ba   - Mở ứng dụng, đặt lịch Thứ Sáu 08:00, ghi "Đau vùng thượng vị,
+             đầy hơi 3 ngày". Nhận mã lịch hẹn.
+  Thứ Năm  - Nhận thông báo nhắc lịch (trước 24 giờ).
+  Thứ Sáu  - 07:50: Đến quầy tiếp nhận REC-101, đọc mã lịch hẹn. Được đo
+             sinh hiệu và xếp vào Phòng khám tổng quát 1.
+             Ứng dụng: "Mời đến Phòng khám tổng quát 1 - tầng 2".
+           - 08:15: Bác sĩ khám, chỉ định xét nghiệm máu, siêu âm ổ bụng,
+             điện tim. Ứng dụng hiện 3 phòng cần đi kèm đường đi.
+           - 08:30 - 09:30: Lần lượt làm xét nghiệm, siêu âm, điện tim.
+             Mỗi phòng xong, ứng dụng báo phòng tiếp theo.
+           - 09:40: Đủ kết quả, ứng dụng báo quay về phòng khám.
+             Bác sĩ kết luận viêm dạ dày cấp, kê đơn, dặn chế độ ăn.
+           - 09:50: Ứng dụng báo có hóa đơn, chỉ đường đến CAS-103.
+             Tổng 2.182.000đ, có thẻ BHYT nên chỉ trả 436.400đ.
+           - 10:00: Ứng dụng báo thuốc đã sẵn sàng. Nhận thuốc tại PHM-105.
+             Lượt khám hoàn thành.
+  Về nhà   - Mở Hồ sơ khám xem lại lời dặn, cách uống thuốc. Xem kết quả
+             xét nghiệm: bạch cầu hơi cao (đánh dấu "Cao"), các chỉ số khác
+             bình thường. Xem hóa đơn chi tiết và phần BHYT đã chi trả.

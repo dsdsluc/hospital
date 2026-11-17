@@ -1,0 +1,2 @@
+Patient Workflow:
++ Người dùng sẽ đặt lịch hẹn với bác sĩ, đợi bác sĩ vertified - add thêm một status vào lịch hẹn - sau khi bác sĩ vertified xong thì sẽ hiển thị một thông báo - chưa biết dùng gì (có thể là socket IO hoặc tương tự cho server-side) - sau đó người dùng sẽ thấy một box lịch hẹn sắp tới màn hình "http://localhost:3000/patient"

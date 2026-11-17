@@ -1,0 +1,6 @@
+import type {Request,Response} from "express";import {addIsolationMonitoring,admitIsolation,createIsolationReferral,findIsolationEpisodes,releaseIsolation} from "../service/isolation.service.js";import type {CreateIsolationMonitoringInput,CreateIsolationReferralInput,ReleaseIsolationInput} from "../validation/isolation.validation.js";
+export async function postIsolationReferral(req:Request,res:Response){res.status(201).json({message:"Đã gửi yêu cầu chuyển ISO-404.",episode:await createIsolationReferral(req.body as CreateIsolationReferralInput)})}
+export async function getIsolationEpisodes(_req:Request,res:Response){res.json({episodes:await findIsolationEpisodes()})}
+export async function putAdmitIsolation(req:Request,res:Response){res.json({message:"Đã tiếp nhận bệnh nhân vào ISO-404.",episode:await admitIsolation(String(req.params.id))})}
+export async function postIsolationMonitoring(req:Request,res:Response){res.status(201).json({message:"Đã lưu diễn biến cách ly.",record:await addIsolationMonitoring(String(req.params.id),req.body as CreateIsolationMonitoringInput)})}
+export async function putReleaseIsolation(req:Request,res:Response){res.json({message:"Đã xác nhận rời ISO-404.",episode:await releaseIsolation(String(req.params.id),req.body as ReleaseIsolationInput)})}
